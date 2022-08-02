@@ -158,7 +158,7 @@ def _GenericDiagnoser(short_name, long_name, diagnoses, msg):
   """
   for regex, diagnosis in diagnoses:
     if re.search(regex, msg):
-      diagnosis = '%(file)s:%(line)s:' + diagnosis
+      diagnosis = f'%(file)s:%(line)s:{diagnosis}'
       for m in _FindAllMatches(regex, msg):
         yield (short_name, long_name, diagnosis % m.groupdict())
 
@@ -491,16 +491,25 @@ need to make it visible.  One way to do it is:
 
   typedef typename Base<T>::%(type)s %(type)s;"""
 
-  for diag in _GenericDiagnoser(
-      'TTB', 'Type in Template Base',
-      [(gcc_4_3_1_regex_type_in_retval, diagnosis % {'type': 'Foo'}),
-       (gcc_4_4_0_regex_type_in_retval, diagnosis % {'type': 'Foo'}),
-       (gcc_regex_type_of_sole_param, diagnosis),
-       (gcc_regex_type_of_a_param, diagnosis),
-       (clang_regex_type_of_retval_or_sole_param, diagnosis),
-       (clang_regex_type_of_a_param, diagnosis % {'type': 'Foo'})],
-      msg):
-    yield diag
+  yield from _GenericDiagnoser(
+      'TTB',
+      'Type in Template Base',
+      [
+          (gcc_4_3_1_regex_type_in_retval, diagnosis % {
+              'type': 'Foo'
+          }),
+          (gcc_4_4_0_regex_type_in_retval, diagnosis % {
+              'type': 'Foo'
+          }),
+          (gcc_regex_type_of_sole_param, diagnosis),
+          (gcc_regex_type_of_a_param, diagnosis),
+          (clang_regex_type_of_retval_or_sole_param, diagnosis),
+          (clang_regex_type_of_a_param, diagnosis % {
+              'type': 'Foo'
+          }),
+      ],
+      msg,
+  )
   # Avoid overlap with the NUS pattern.
   for m in _FindAllMatches(clang_regex_unknown_type, msg):
     type_ = m.groupdict()['type']
@@ -586,7 +595,7 @@ def Diagnose(msg):
   for diagnoser in _DIAGNOSERS:
     for diag in diagnoser(msg):
       diagnosis = '[%s - %s]\n%s' % diag
-      if not diagnosis in diagnoses:
+      if diagnosis not in diagnoses:
         diagnoses.append(diagnosis)
   return diagnoses
 
@@ -620,12 +629,10 @@ win-win for us!""" % (msg, _EMAIL))
     print ('------------------------------------------------------------')
     print ('Your code appears to have the following',)
     if count > 1:
-      print ('%s diseases:' % (count,))
+      print(f'{count} diseases:')
     else:
       print ('disease:')
-    i = 0
-    for d in diagnoses:
-      i += 1
+    for i, d in enumerate(diagnoses, start=1):
       if count > 1:
         print ('\n#%s:' % (i,))
       print (d)
